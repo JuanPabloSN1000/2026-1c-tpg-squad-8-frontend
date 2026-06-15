@@ -10,9 +10,9 @@ function App() {
   const [cargando, setCargando] = useState(false);
 
   // URL de tu API de Java desplegada en Render
-  //  const API_URL = 'https://two026-1c-tpg-squad-8-backend.onrender.com/api/leads';
+    const API_URL = 'https://two026-1c-tpg-squad-8-backend.onrender.com/api/leads';
   // URL para despliegue local
-    const API_URL = 'http://localhost:8080/api/leads';
+//    const API_URL = 'http://localhost:8080/api/leads';
 //URL para compartir mi localhost
 //  const API_URL = 'https://blot-catsup-sector.ngrok-free.dev/api/leads';
   // GET: Consultar los Leads reales a la base de datos de Java
