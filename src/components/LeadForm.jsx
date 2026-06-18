@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-export default function LeadForm({ lead, onSave, onCancel }) {
+export default function LeadForm({ lead, onSave, onCancel, onGenerarOportunidad }) {
   const [formData, setFormData] = useState({
     nombre: '',
     contacto: '',
@@ -119,6 +119,21 @@ const handleSubmit = (e) => {
         <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
           <button type="submit" style={{ border: '2px solid #333', padding: '10px 20px', background: '#d4f7d4', cursor: 'pointer', fontFamily: 'inherit' }}>Guardar</button>
           <button type="button" onClick={onCancel} style={{ border: '2px solid #333', padding: '10px 20px', background: 'white', cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
+          <button 
+            type="button"
+            onClick={() => { 
+            // Validamos usando el estado del formulario (formData.estado)
+            
+            if (formData.estado !== "Calificado") {
+            alert("El lead debe estar calificado para generar una oportunida.");
+            return; // Bloquea la ejecución y no pasa al formulario de oportunidad
+           }
+           onGenerarOportunidad(lead)}}
+            disabled={!lead?.id} // Solo habilitado si el lead ya fue guardado y tiene ID
+            style={{ border: '2px solid #333', padding: '10px 20px', background: '#fff9c4', cursor: lead?.id ? 'pointer' : 'not-allowed' }}
+          >
+          Generar Oportunidad
+        </button>
         </div>
       </form>
     </div>
