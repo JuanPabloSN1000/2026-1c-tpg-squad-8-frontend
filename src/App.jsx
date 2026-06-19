@@ -1,201 +1,402 @@
 import React, { useState, useEffect } from 'react';
+import './App.css';
 import LeadList from './components/LeadList';
 import LeadForm from './components/LeadForm';
 import OportunidadesList from './components/OportunidadesList';
 import OportunidadForm from './components/OportunidadForm';
+import ClientList from './components/ClientList';
+import ClientForm from './components/ClientForm';
+import CampaniaList from './components/CampaniaList';
+import CampaniaForm from './components/CampaniaForm';
+import CampaniaRanking from './components/CampaniaRanking';
+import ClientDetail from './components/ClientDetail';
+import CampaniaDetail from './components/CampaniaDetail';
+
+const NAV = [
+  { key: 'LEADS',         icon: '👤', label: 'Leads'         },
+  { key: 'OPORTUNIDADES', icon: '💼', label: 'Oportunidades'  },
+  { key: 'CLIENTES',      icon: '🏢', label: 'Clientes'       },
+  { key: 'CAMPANIAS',     icon: '📣', label: 'Campañas'       },
+];
+
+const BASE = 'https://two026-1c-tpg-squad-8-backend.onrender.com/api';
 
 function App() {
-  const [leads, setLeads] = useState([]);
+  const [leads,         setLeads]         = useState([]);
   const [oportunidades, setOportunidades] = useState([]);
-  
-  // Vistas: 'LISTADO_LEADS', 'FORMULARIO_LEAD', 'LISTADO_OPORTUNIDADES', 'FORMULARIO_OPORTUNIDAD'
-  const [vistaActual, setVistaActual] = useState('LISTADO_LEADS'); 
-  
-  const [leadSeleccionado, setLeadSeleccionado] = useState(null);
+  const [clientes,      setClientes]      = useState([]);
+  const [campanias,     setCampanias]     = useState([]);
+  const [ranking,       setRanking]       = useState([]);
+
+  const [seccion, setSeccion] = useState('LEADS');
+  // vista: 'LISTADO' | 'FORMULARIO' | 'RANKING'
+  const [vista,   setVista]   = useState('LISTADO');
+
+  const [leadSeleccionado,        setLeadSeleccionado]        = useState(null);
   const [oportunidadSeleccionada, setOportunidadSeleccionada] = useState(null);
-  
-  const [searchTermLeads, setSearchTermLeads] = useState('');
-  const [searchTermOportunidades, setSearchTermOportunidades] = useState('');
+  const [clienteSeleccionado,     setClienteSeleccionado]     = useState(null);
+  const [campaniaSeleccionada,    setCampaniaSeleccionada]    = useState(null);
+
+  const [searchLeads,       setSearchLeads]       = useState('');
+  const [searchOportunidades, setSearchOportunidades] = useState('');
+  const [searchClientes,    setSearchClientes]    = useState('');
+  const [searchCampanias,   setSearchCampanias]   = useState('');
+
   const [cargando, setCargando] = useState(false);
+  const [error,    setError]    = useState(null);
 
-  // URLs de los Endpoints en Render
-  const LEADS_API_URL = 'https://two026-1c-tpg-squad-8-backend.onrender.com/api/leads';
-  const OPORTUNIDADES_API_URL = 'https://two026-1c-tpg-squad-8-backend.onrender.com/api/oportunidades';
-
-  // GET: Cargar Leads
-  const fetchLeads = async () => {
+  // ── Fetch ──────────────────────────────────────────────────────────────────
+  const fetchAll = async () => {
     setCargando(true);
+    setError(null);
     try {
-      const response = await fetch(LEADS_API_URL);
-      if (response.ok) {
-        const data = await response.json();
-        setLeads(data);
-      }
-    } catch (error) {
-      console.error("Error cargando leads:", error);
+      const [rLeads, rOps, rClients, rCamp] = await Promise.all([
+        fetch(`${BASE}/leads`),
+        fetch(`${BASE}/oportunidades`),
+        fetch(`${BASE}/clientes`),
+        fetch(`${BASE}/campanias`),
+      ]);
+      if (rLeads.ok)   setLeads(await rLeads.json());
+      if (rOps.ok)     setOportunidades(await rOps.json());
+      if (rClients.ok) setClientes(await rClients.json());
+      if (rCamp.ok)    setCampanias(await rCamp.json());
+    } catch (e) {
+      console.error('Error cargando datos:', e);
+      setError('No se pudo conectar con el backend. Puede estar iniciando (Render cold start).');
     } finally {
       setCargando(false);
     }
   };
 
-  // GET: Cargar Oportunidades
-  const fetchOportunidades = async () => {
-    setCargando(true);
+  const fetchRanking = async () => {
     try {
-      const response = await fetch(OPORTUNIDADES_API_URL);
-      if (response.ok) {
-        const data = await response.json();
-        setOportunidades(data);
-      }
-    } catch (error) {
-      console.error("Error cargando oportunidades:", error);
-    } finally {
-      setCargando(false);
-    }
+      const res = await fetch(`${BASE}/campanias/ranking`);
+      if (res.ok) setRanking(await res.json());
+    } catch (e) { console.error('Error cargando ranking:', e); }
   };
 
-  useEffect(() => {
-    fetchLeads();
-    fetchOportunidades();
-  }, []);
+  useEffect(() => { fetchAll(); }, []);
 
-  // POST: Guardar/Actualizar Lead
-  const handleSaveLead = async (formData) => {
+  const navTo = (s) => { setSeccion(s); setVista('LISTADO'); };
+  const volverAlListado = () => {
+    setVista('LISTADO');
+    setLeadSeleccionado(null);
+    setOportunidadSeleccionada(null);
+    setClienteSeleccionado(null);
+    setCampaniaSeleccionada(null);
+  };
+
+  // ── Leads ──────────────────────────────────────────────────────────────────
+  const handleSaveLead = async (payload) => {
     try {
-      const response = await fetch(LEADS_API_URL, {
+      const res = await fetch(`${BASE}/leads`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload),
       });
-      if (response.ok) {
-        fetchLeads();
-        setVistaActual('LISTADO_LEADS');
-        setLeadSeleccionado(null);
-      } else {
-        alert('Error en el servidor al procesar el Lead.');
-      }
-    } catch (error) {
-      console.error("Error enviando lead:", error);
-    }
+      if (res.ok) { await fetchAll(); volverAlListado(); }
+      else alert(`Error al crear el Lead: ${await res.text()}`);
+    } catch (e) { console.error(e); alert('Error de conexión.'); }
   };
 
-  
-
-// POST / PUT: Guardar o Actualizar Oportunidad de forma inteligente
-  const handleSaveOportunidad = async (payload) => {
-    // Si el payload viene con "esEdicion", sabemos que hay que ir por PUT
-    const esEdicion = payload.esEdicion;
-    
-    // Limpiamos la bandera temporal para que no viaje al backend
-    delete payload.esEdicion;
-
-    const url = esEdicion 
-      ? `${OPORTUNIDADES_API_URL}/${payload.id}`
-      : OPORTUNIDADES_API_URL;
-
-    const metodo = esEdicion ? 'PUT' : 'POST';
-
+  const handleUpdateLead = async (id, datosBase, nuevoEstado) => {
     try {
-      const response = await fetch(url, {
-        method: metodo,
+      const r1 = await fetch(`${BASE}/leads/${id}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(datosBase),
       });
-      if (response.ok) {
-        fetchOportunidades();
-        setVistaActual('LISTADO_OPORTUNIDADES');
-        setOportunidadSeleccionada(null);
-      } else {
-        alert('Error en el servidor al procesar la Oportunidad (Verificar reglas de negocio o CORS).');
+      if (!r1.ok) { alert(`Error al actualizar: ${await r1.text()}`); return; }
+      if (nuevoEstado) {
+        const r2 = await fetch(`${BASE}/leads/${id}/estado`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ estado: nuevoEstado }),
+        });
+        if (!r2.ok) { alert(`Error al actualizar estado: ${await r2.text()}`); return; }
       }
-    } catch (error) {
-      console.error("Error enviando oportunidad:", error);
+      await fetchAll();
+      volverAlListado();
+    } catch (e) { console.error(e); alert('Error de conexión.'); }
+  };
+
+  // ── Oportunidades ──────────────────────────────────────────────────────────
+  const handleCreateOportunidad = async (payload) => {
+    try {
+      const res = await fetch(`${BASE}/oportunidades`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) { await fetchAll(); volverAlListado(); }
+      else alert(`Error al crear la Oportunidad: ${await res.text()}`);
+    } catch (e) { console.error(e); alert('Error de conexión.'); }
+  };
+
+  const handleRegistrarGanada = async (id, payload) => {
+    try {
+      const res = await fetch(`${BASE}/oportunidades/${id}/ganada`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) { await fetchAll(); volverAlListado(); }
+      else alert(`Error al registrar ganada: ${await res.text()}`);
+    } catch (e) { console.error(e); alert('Error de conexión.'); }
+  };
+
+  const handleRegistrarPerdida = async (id, payload) => {
+    try {
+      const res = await fetch(`${BASE}/oportunidades/${id}/perdida`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) { await fetchAll(); volverAlListado(); }
+      else alert(`Error al registrar perdida: ${await res.text()}`);
+    } catch (e) { console.error(e); alert('Error de conexión.'); }
+  };
+
+  const handleGenerarOportunidad = (lead) => {
+    setOportunidadSeleccionada({ leadAsociadoId: lead.id });
+    setSeccion('OPORTUNIDADES');
+    setVista('FORMULARIO');
+  };
+
+  // ── Clientes ───────────────────────────────────────────────────────────────
+  const handleSaveCliente = async (formData) => {
+    try {
+      const res = await fetch(`${BASE}/clientes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      if (res.ok) { await fetchAll(); volverAlListado(); }
+      else alert(`Error al crear el Cliente: ${await res.text()}`);
+    } catch (e) { console.error(e); alert('Error de conexión.'); }
+  };
+
+  const handleVerDetalleCliente = async (cliente) => {
+    try {
+      const res = await fetch(`${BASE}/clientes/${cliente.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setClienteSeleccionado(data);
+        setVista('DETALLE');
+      } else {
+        alert(`Error al obtener los detalles del cliente: ${await res.text()}`);
+      }
+    } catch (e) {
+      console.error('Error fetching client details:', e);
+      // Fallback to local item if network/server has issues
+      setClienteSeleccionado(cliente);
+      setVista('DETALLE');
     }
   };
 
-
-
-
-  // Acción: Cuando en el formulario de Lead tocan "Generar Oportunidad"
-  const handleGenerarOportunidadDesdeLead = (leadData) => {
-    // Seteamos la oportunidad inicial cargándole el lead asociado por defecto
-    setOportunidadSeleccionada({
-      leadAsociadoId: leadData.id,
-      descripcion: leadData.descripcion || `Oportunidad originada del lead: ${leadData.nombre}`
-    });
-    setVistaActual('FORMULARIO_OPORTUNIDAD');
+  // ── Campañas ───────────────────────────────────────────────────────────────
+  const handleSaveCampania = async (payload) => {
+    try {
+      const res = await fetch(`${BASE}/campanias`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) { await fetchAll(); volverAlListado(); }
+      else alert(`Error al crear la Campaña: ${await res.text()}`);
+    } catch (e) { console.error(e); alert('Error de conexión.'); }
   };
 
-  // Filtrados reactivos locales
-  const filteredLeads = leads.filter(lead =>
-    lead.nombre?.toLowerCase().includes(searchTermLeads.toLowerCase())
+  const handleVerRanking = async () => {
+    await fetchRanking();
+    setVista('RANKING');
+  };
+
+  const handleVerDetalleCampania = async (campania) => {
+    try {
+      const res = await fetch(`${BASE}/campanias/${campania.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCampaniaSeleccionada(data);
+        setVista('DETALLE');
+      } else {
+        alert(`Error al obtener detalles de campaña: ${await res.text()}`);
+      }
+    } catch (e) {
+      console.error('Error fetching campaign details:', e);
+      setCampaniaSeleccionada(campania);
+      setVista('DETALLE');
+    }
+  };
+
+  // ── Filtros ────────────────────────────────────────────────────────────────
+  const filteredLeads = leads.filter(l =>
+    l.nombre?.toLowerCase().includes(searchLeads.toLowerCase())
+  );
+  const filteredOps = oportunidades.filter(op =>
+    op.prospecto?.nombre?.toLowerCase().includes(searchOportunidades.toLowerCase()) ||
+    op.id?.toString().includes(searchOportunidades)
+  );
+  const filteredClientes = clientes.filter(c =>
+    c.razonSocial?.toLowerCase().includes(searchClientes.toLowerCase()) ||
+    c.cuit?.toString().includes(searchClientes)
+  );
+  const filteredCampanias = campanias.filter(c =>
+    c.nombre?.toLowerCase().includes(searchCampanias.toLowerCase()) ||
+    c.tipo?.toLowerCase().includes(searchCampanias.toLowerCase())
   );
 
-  const filteredOportunidades = oportunidades.filter(op =>
-    op.nombre?.toLowerCase().includes(searchTermOportunidades.toLowerCase()) ||
-    op.id?.toString().includes(searchTermOportunidades)
-  );
-
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div style={{ fontFamily: '"Comic Sans MS", cursive, sans-serif', background: '#f0f0f0', padding: '20px', minHeight: '100vh' }}>
-      {/* Barra de Navegación Simple Superior al estilo Mockup */}
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginBottom: '20px' }}>
-        <button 
-          onClick={() => setVistaActual('LISTADO_LEADS')}
-          style={{ padding: '10px 20px', fontWeight: 'bold', border: '2px solid #333', cursor: 'pointer', background: vistaActual.includes('LEAD') ? '#fff9c4' : '#white' }}
-        >
-          📁 Gestión de Leads
-        </button>
-        <button 
-          onClick={() => setVistaActual('LISTADO_OPORTUNIDADES')}
-          style={{ padding: '10px 20px', fontWeight: 'bold', border: '2px solid #333', cursor: 'pointer', background: vistaActual.includes('OPORTUNIDAD') ? '#fff9c4' : '#white' }}
-        >
-          💼 Módulo de Oportunidades
-        </button>
-      </div>
+    <div className="app-shell">
+      <header className="topbar">
+        <div className="topbar-logo">
+          <div className="topbar-logo-icon">🏦</div>
+          <div>
+            <div className="topbar-logo-text">PSA · CRM</div>
+            <div className="topbar-logo-sub">SQUAD 8</div>
+          </div>
+        </div>
 
-      <h1 style={{ textAlign: 'center', marginBottom: '30px' }}>SQUAD 8 - CRM Corporativo</h1>
+        <div className="topbar-divider" />
 
-      {cargando && <p style={{ textAlign: 'center', fontWeight: 'bold' }}>⌛ Sincronizando datos con el backend de Java...</p>}
+        <nav className="topbar-nav">
+          {NAV.map(n => (
+            <button
+              key={n.key}
+              className={`topbar-nav-btn${seccion === n.key ? ' active' : ''}`}
+              onClick={() => navTo(n.key)}
+            >
+              <span className="nav-icon">{n.icon}</span>
+              {n.label}
+            </button>
+          ))}
+        </nav>
 
-      {/* Renderizado Condicional de Vistas */}
-      {vistaActual === 'LISTADO_LEADS' && (
-        <LeadList
-          leads={filteredLeads}
-          onSelectLead={(lead) => { setLeadSeleccionado(lead); setVistaActual('FORMULARIO_LEAD'); }}
-          onCreateClick={() => { setLeadSeleccionado(null); setVistaActual('FORMULARIO_LEAD'); }}
-          searchTerm={searchTermLeads}
-          onSearchChange={setSearchTermLeads}
-        />
-      )}
+        <div className="topbar-right">
+          {cargando
+            ? <div className="topbar-sync"><div className="spinner" /> Sincronizando...</div>
+            : <div className="topbar-sync" style={{ cursor: 'pointer' }} onClick={fetchAll} title="Reintentar">
+                <div className="sync-dot" style={{ background: error ? '#f87171' : '#4ade80' }} />
+                {error ? 'Sin conexión · Reintentar' : 'Conectado'}
+              </div>
+          }
+        </div>
+      </header>
 
-      {vistaActual === 'FORMULARIO_LEAD' && (
-        <LeadForm
-          lead={leadSeleccionado}
-          onSave={handleSaveLead}
-          onGenerarOportunidad={handleGenerarOportunidadDesdeLead}
-          onCancel={() => { setVistaActual('LISTADO_LEADS'); setLeadSeleccionado(null); }}
-        />
-      )}
+      <main className="main-content">
+        {error && vista === 'LISTADO' && (
+          <div style={{
+            padding: '12px 16px', marginBottom: 20,
+            background: 'var(--danger-light)', border: '1px solid #fca5a5',
+            borderRadius: 'var(--radius)', color: 'var(--danger)', fontSize: '13px',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+          }}>
+            <span>⚠️ {error}</span>
+            <button className="btn btn-secondary btn-sm" onClick={fetchAll}>Reintentar</button>
+          </div>
+        )}
 
-      {vistaActual === 'LISTADO_OPORTUNIDADES' && (
-        <OportunidadesList
-          oportunidades={filteredOportunidades}
-          onSelectOportunidad={(op) => { setOportunidadSeleccionada(op); setVistaActual('FORMULARIO_OPORTUNIDAD'); }}
-          onCreateClick={() => { setOportunidadSeleccionada(null); setVistaActual('FORMULARIO_OPORTUNIDAD'); }}
-          searchTerm={searchTermOportunidades}
-          onSearchChange={setSearchTermOportunidades}
-        />
-      )}
+        {/* ── LEADS ── */}
+        {seccion === 'LEADS' && vista === 'LISTADO' && (
+          <LeadList
+            leads={filteredLeads}
+            searchTerm={searchLeads}
+            onSearchChange={setSearchLeads}
+            onSelectLead={(l) => { setLeadSeleccionado(l); setVista('FORMULARIO'); }}
+            onCreateClick={() => { setLeadSeleccionado(null); setVista('FORMULARIO'); }}
+          />
+        )}
+        {seccion === 'LEADS' && vista === 'FORMULARIO' && (
+          <LeadForm
+            lead={leadSeleccionado}
+            onSave={handleSaveLead}
+            onUpdate={handleUpdateLead}
+            onGenerarOportunidad={handleGenerarOportunidad}
+            onCancel={volverAlListado}
+          />
+        )}
 
-      {vistaActual === 'FORMULARIO_OPORTUNIDAD' && (
-        <OportunidadForm
-          oportunidad={oportunidadSeleccionada}
-          leads={leads} // Se los pasamos para armar el select de "Lead Asociado"
-          onSave={handleSaveOportunidad}
-          onCancel={() => { setVistaActual('LISTADO_OPORTUNIDADES'); setOportunidadSeleccionada(null); }}
-        />
-      )}
+        {/* ── OPORTUNIDADES ── */}
+        {seccion === 'OPORTUNIDADES' && vista === 'LISTADO' && (
+          <OportunidadesList
+            oportunidades={filteredOps}
+            searchTerm={searchOportunidades}
+            onSearchChange={setSearchOportunidades}
+            onSelectOportunidad={(op) => { setOportunidadSeleccionada(op); setVista('FORMULARIO'); }}
+            onCreateClick={() => { setOportunidadSeleccionada(null); setVista('FORMULARIO'); }}
+          />
+        )}
+        {seccion === 'OPORTUNIDADES' && vista === 'FORMULARIO' && (
+          <OportunidadForm
+            oportunidad={oportunidadSeleccionada}
+            leads={leads}
+            clientes={clientes}
+            onSave={handleCreateOportunidad}
+            onRegistrarGanada={handleRegistrarGanada}
+            onRegistrarPerdida={handleRegistrarPerdida}
+            onCancel={volverAlListado}
+          />
+        )}
+
+        {/* ── CLIENTES ── */}
+        {seccion === 'CLIENTES' && vista === 'LISTADO' && (
+          <ClientList
+            clients={filteredClientes}
+            searchTerm={searchClientes}
+            onSearchChange={setSearchClientes}
+            onCreateClick={() => setVista('FORMULARIO')}
+            onSelectClient={handleVerDetalleCliente}
+          />
+        )}
+        {seccion === 'CLIENTES' && vista === 'FORMULARIO' && (
+          <ClientForm
+            onSave={handleSaveCliente}
+            onCancel={volverAlListado}
+          />
+        )}
+        {seccion === 'CLIENTES' && vista === 'DETALLE' && clienteSeleccionado && (
+          <ClientDetail
+            client={clienteSeleccionado}
+            opportunities={oportunidades}
+            onBackClick={volverAlListado}
+          />
+        )}
+
+        {/* ── CAMPAÑAS ── */}
+        {seccion === 'CAMPANIAS' && vista === 'LISTADO' && (
+          <CampaniaList
+            campanias={filteredCampanias}
+            searchTerm={searchCampanias}
+            onSearchChange={setSearchCampanias}
+            onCreateClick={() => setVista('FORMULARIO')}
+            onSelectCampania={(val) => {
+              if (val === 'ranking') handleVerRanking();
+              else handleVerDetalleCampania(val);
+            }}
+          />
+        )}
+        {seccion === 'CAMPANIAS' && vista === 'FORMULARIO' && (
+          <CampaniaForm
+            onSave={handleSaveCampania}
+            onCancel={volverAlListado}
+          />
+        )}
+        {seccion === 'CAMPANIAS' && vista === 'DETALLE' && campaniaSeleccionada && (
+          <CampaniaDetail
+            campania={campaniaSeleccionada}
+            leads={leads}
+            onBackClick={volverAlListado}
+            baseApiUrl={BASE}
+          />
+        )}
+        {seccion === 'CAMPANIAS' && vista === 'RANKING' && (
+          <CampaniaRanking
+            ranking={ranking}
+            onVolver={() => setVista('LISTADO')}
+          />
+        )}
+      </main>
     </div>
   );
 }

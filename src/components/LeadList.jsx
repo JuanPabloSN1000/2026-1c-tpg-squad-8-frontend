@@ -1,45 +1,78 @@
 import React from 'react';
 
+function estadoBadge(estado) {
+  if (!estado) return <span className="badge badge-nuevo">—</span>;
+  const e = estado.toLowerCase();
+  if (e === 'nuevo')      return <span className="badge badge-nuevo">Nuevo</span>;
+  if (e === 'contactado') return <span className="badge badge-contactado">Contactado</span>;
+  if (e === 'calificado') return <span className="badge badge-calificado">Calificado</span>;
+  if (e === 'convertido') return <span className="badge badge-convertido">Convertido</span>;
+  return <span className="badge badge-nuevo">{estado}</span>;
+}
+
 export default function LeadList({ leads, onSelectLead, onCreateClick, searchTerm, onSearchChange }) {
   return (
-    <div className="wireframe-container" style={{ width: '900px', margin: 'auto', padding: '20px', background: 'white', border: '3px solid #333', borderRadius: '15px 5px' }}>
-      <header style={{ borderBottom: '2px solid #333', display: 'flex', paddingBottom: '10px', marginBottom: '20px', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span>Vendedor: <strong>Juan Pablo</strong> (Sesión Activa)</span>
-        <button style={{ border: '2px solid #333', padding: '10px', background: '#fff', cursor: 'pointer', borderRadius: '5px 10px', fontWeight: 'bold' }} onClick={onCreateClick}>+ Crear Nuevo Lead</button>
-      </header>
+    <>
+      <div className="page-header">
+        <div className="page-header-left">
+          <h2>Gestión de Leads</h2>
+          <p>Registro y seguimiento de prospectos del pipeline comercial</p>
+        </div>
+        <button className="btn btn-primary btn-lg" onClick={onCreateClick}>
+          + Nuevo Lead
+        </button>
+      </div>
 
-      <div style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
-        <input 
-          type="text" 
-          placeholder="Buscar lead por nombre o código..." 
-          value={searchTerm}
-          onChange={(e) => onSearchChange(e.target.value)}
-          style={{ flexGrow: 1, border: '2px solid #333', padding: '10px', borderRadius: '5px', fontFamily: 'inherit' }}
-        />
-        <button style={{ border: '2px solid #333', padding: '10px 20px', background: '#fff', fontWeight: 'bold', cursor: 'pointer', borderRadius: '5px', fontFamily: 'inherit' }}>🔍 Buscar</button>
-      </div>   
-
-      <h2>Listado de Leads</h2>
-      
-      {leads.length === 0 ? (
-        <p>No se encontraron leads cargados en el servidor.</p>
-      ) : (
-        leads.map((lead) => (
-          <div 
-            key={lead.id} 
-            onClick={() => onSelectLead(lead)}
-            style={{ border: '2px solid #333', marginBottom: '10px', padding: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', background: '#fff' }}
-          >
-            <div style={{ display: 'flex', gap: '20px' }}>
-              <span>ID: {lead.id}</span>
-              <span><strong>Nombre:</strong> {lead.nombre}</span>
-              <span><strong>Estado:</strong> {lead.estado}</span>
-              <span><strong>Origen:</strong> {lead.origen}</span>
-            </div>
-            <div style={{ fontSize: '24px', border: '1px solid #333', padding: '5px' }}>📝</div>
+      <div className="card">
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+          <div className="search-input-wrapper" style={{ maxWidth: 380 }}>
+            <span className="search-input-icon">🔍</span>
+            <input
+              className="form-input"
+              type="text"
+              placeholder="Buscar por nombre..."
+              value={searchTerm}
+              onChange={(e) => onSearchChange(e.target.value)}
+            />
           </div>
-        ))
-      )}
-    </div>
+        </div>
+
+        {leads.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-state-icon">👤</div>
+            <p>No se encontraron leads registrados.</p>
+          </div>
+        ) : (
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Nombre</th>
+                <th>Contacto</th>
+                <th>Origen</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {leads.map((lead) => (
+                <tr key={lead.id} className="clickable" onClick={() => onSelectLead(lead)}>
+                  <td style={{ fontFamily: 'monospace', color: 'var(--gray-400)', fontSize: '12px' }}>#{lead.id}</td>
+                  <td style={{ fontWeight: 600, color: 'var(--gray-900)' }}>{lead.nombre}</td>
+                  <td style={{ color: 'var(--gray-500)' }}>{lead.contacto || '—'}</td>
+                  <td style={{ color: 'var(--gray-600)' }}>{lead.origen || '—'}</td>
+                  <td>{estadoBadge(lead.estado)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
+        {leads.length > 0 && (
+          <div style={{ padding: '10px 20px', borderTop: '1px solid var(--border)', fontSize: '12px', color: 'var(--gray-400)' }}>
+            {leads.length} {leads.length === 1 ? 'registro' : 'registros'}
+          </div>
+        )}
+      </div>
+    </>
   );
 }

@@ -1,216 +1,205 @@
 import React, { useState, useEffect } from 'react';
 
-function OportunidadForm({ oportunidad, leads, onSave, onCancel }) {
-  const [formData, setFormData] = useState({
-    leadId: '',
-    estado: 'En negociación',
-    montoEstimado: '',
-    descripcion: ''
-  });
+// Etapas reales según OportunidadService.java
+// El backend setea etapa = "negociación" al crear
+// Solo permite /ganada y /perdida como transiciones
 
-  // 1. Efecto adaptado al modelo real de la base de datos de Java
+function etapaBadge(etapa) {
+  if (!etapa) return <span className="badge badge-negociacion">—</span>;
+  const e = etapa.toLowerCase();
+  if (e.includes('negoci'))  return <span className="badge badge-negociacion">Negociación</span>;
+  if (e.includes('ganada') || e.includes('ganado')) return <span className="badge badge-ganada">Ganada</span>;
+  if (e.includes('perdida') || e.includes('perdido')) return <span className="badge badge-perdida">Perdida</span>;
+  return <span className="badge badge-negociacion">{etapa}</span>;
+}
+
+// Modo CREATE: POST /api/oportunidades → { leadId, oportunidadId }
+// Modo GANADA: PUT /api/oportunidades/{id}/ganada → { montoFinal, observaciones, clienteId }
+// Modo PERDIDA: PUT /api/oportunidades/{id}/perdida → { observaciones }
+export default function OportunidadForm({ oportunidad, leads, clientes, onSave, onRegistrarGanada, onRegistrarPerdida, onCancel }) {
+  const esEdicion = !!(oportunidad?.id && !oportunidad.leadAsociadoId);
+  const etapa = oportunidad?.etapa?.toLowerCase() || '';
+  const enNegociacion = etapa.includes('negoci') || etapa === '';
+
+  // Estado para creación
+  const [leadId, setLeadId] = useState('');
+
+  // Estado para registrar ganada
+  const [montoFinal, setMontoFinal] = useState('');
+  const [obsGanada, setObsGanada] = useState('');
+  const [clienteId, setClienteId] = useState('');
+
+  // Estado para registrar perdida
+  const [obsPerdida, setObsPerdida] = useState('');
+
+  // Tab activo en modo edición
+  const [tab, setTab] = useState('ganada'); // 'ganada' | 'perdida'
+
   useEffect(() => {
-    if (oportunidad) {
-      setFormData({
-        // Tu backend anida el Lead dentro de 'prospecto'. Sacamos el ID de ahí.
-        leadId: oportunidad.prospecto?.id || oportunidad.leadAsociadoId || '',
-        estado: oportunidad.etapa || 'En negociación',
-        montoEstimado: oportunidad.montoFinal || '',
-        descripcion: oportunidad.observaciones || oportunidad.descripcion || ''
-      });
+    if (oportunidad?.leadAsociadoId) {
+      setLeadId(oportunidad.leadAsociadoId.toString());
+    }
+    if (oportunidad?.observaciones) {
+      setObsGanada(oportunidad.observaciones);
+      setObsPerdida(oportunidad.observaciones);
+    }
+    if (oportunidad?.montoFinal) {
+      setMontoFinal(oportunidad.montoFinal.toString());
     }
   }, [oportunidad]);
 
-  // 2. Efecto para autocompletar si cambia el Lead seleccionado
-  useEffect(() => {
-    if (formData.leadId) {
-      const leadAsociado = leads.find(l => l.id.toString() === formData.leadId.toString());
-      if (leadAsociado) {
-        setFormData(prev => ({
-          ...prev,
-          // Si no hay observaciones previas de la oportunidad, usamos el origen del lead
-          descripcion: prev.descripcion || (leadAsociado.descripcion ? `Origen Lead: ${leadAsociado.descripcion}` : '')
-        }));
-      }
-    }
-  }, [formData.leadId, leads]);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = (e) => {
+  // ── Creación ──
+  const handleCreate = (e) => {
     e.preventDefault();
-
-    if (!formData.leadId) {
-      alert('Por favor, seleccione un Lead Asociado obligatorio.');
-      return;
-    }
-
-    const esEdicion = !!(oportunidad && oportunidad.id && !oportunidad.leadAsociadoId);
-
-    let payload = {};
-
-    if (esEdicion) {
-      // Payload para el @PutMapping matching con ActualizarOportunidadRequest del Backend
-      payload = {
-        id: oportunidad.id,
-        esEdicion: true,
-        montoEstimado: parseFloat(formData.montoEstimado) || 0,
-        observaciones: formData.descripcion,
-        etapa: formData.estado
-      };
-    } else {
-      // Payload para el @PostMapping matching con ConversionRequest del Backend
-      payload = {
-        esEdicion: false,
-        leadId: parseInt(formData.leadId),
-        oportunidadId: Math.floor(Math.random() * 10000)
-      };
-    }
-
-    onSave(payload);
+    if (!leadId) { alert('Seleccioná un lead asociado.'); return; }
+    onSave({
+      leadId:       parseInt(leadId),
+      oportunidadId: Math.floor(Math.random() * 900000) + 100000,
+    });
   };
 
+  // ── Ganada ──
+  const handleGanada = (e) => {
+    e.preventDefault();
+    if (!montoFinal) { alert('El monto final es obligatorio.'); return; }
+    if (!clienteId) { alert('Seleccioná el cliente asociado.'); return; }
+    onRegistrarGanada(oportunidad.id, {
+      montoFinal:   parseFloat(montoFinal),
+      observaciones: obsGanada,
+      clienteId:    parseInt(clienteId),
+    });
+  };
+
+  // ── Perdida ──
+  const handlePerdida = (e) => {
+    e.preventDefault();
+    if (!obsPerdida.trim()) { alert('Las observaciones son obligatorias para registrar una pérdida.'); return; }
+    onRegistrarPerdida(oportunidad.id, { observaciones: obsPerdida });
+  };
+
+  // ── Render creación ──
+  if (!esEdicion) {
+    const leadsCalificados = leads.filter(l => l.estado?.toLowerCase() === 'calificado');
+    return (
+      <div className="form-card">
+        <div className="form-card-header">
+          <h2>Crear Nueva Oportunidad</h2>
+          <p>Convertí un lead calificado en oportunidad comercial</p>
+        </div>
+        <form onSubmit={handleCreate}>
+          <div className="form-card-body">
+            <div className="form-group">
+              <label className="form-label">Lead Asociado * <span style={{ color: 'var(--gray-400)', fontWeight: 400, textTransform: 'none' }}>(solo calificados)</span></label>
+              <select className="form-select" value={leadId} onChange={e => setLeadId(e.target.value)}>
+                <option value="">— Seleccioná un lead —</option>
+                {leadsCalificados.map(l => (
+                  <option key={l.id} value={l.id}>{l.nombre} (#{l.id})</option>
+                ))}
+              </select>
+              {leadsCalificados.length === 0 && (
+                <span style={{ fontSize: '12px', color: 'var(--danger)', marginTop: 4 }}>
+                  No hay leads en estado <strong>calificado</strong> disponibles.
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="form-card-footer">
+            <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancelar</button>
+            <button type="submit" className="btn btn-primary" disabled={!leadId}>Crear Oportunidad</button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
+  // ── Render edición: ganada / perdida ──
   return (
-    <div style={{ maxWidth: '700px', margin: 'auto', background: 'white', border: '3px solid #333', padding: '30px', borderRadius: '15px 5px 20px 5px', boxShadow: '8px 8px 0px #222' }}>
-      <h2 style={{ textDecoration: 'underline', marginTop: 0 }}>
-        {oportunidad?.id ? `Editar Oportunidad #${oportunidad.id}` : 'Crear Nueva Oportunidad'}
-      </h2>
+    <div className="form-card" style={{ maxWidth: 700 }}>
+      <div className="form-card-header">
+        <h2>Oportunidad #{oportunidad.id}</h2>
+        <p>
+          Lead: <strong>{oportunidad.prospecto?.nombre || `#${oportunidad.prospecto?.id}`}</strong>
+          &nbsp;·&nbsp; Etapa actual: {etapaBadge(oportunidad.etapa)}
+        </p>
+      </div>
 
-      <form onSubmit={handleSubmit}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-          
-          {/* Nombre de la Oportunidad */}
-          <div style={{ display: 'flex', flexDirection: 'column', gridColumn: 'span 2' }}>
-            <label style={{ fontWeight: 'bold', marginBottom: '5px' }}>Nombre del Proyecto / Requerimiento:</label>
-            <input 
-              type="text"
-              name="nombre"
-              value={formData.nombre}
-              onChange={handleChange}
-              placeholder="Ej: Implementación ERP Cloud"
-              style={{ border: '2px solid #333', padding: '8px', borderRadius: '4px', fontFamily: 'inherit' }}
-            />
-          </div>
-
-          {/* Selector de Lead Asociado */}
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <label style={{ fontWeight: 'bold', marginBottom: '5px' }}>Lead Asociado:</label>
-            <select 
-              name="leadId"
-              value={formData.leadId}
-              onChange={handleChange}
-              style={{ border: '2px solid #333', padding: '8px', borderRadius: '4px', fontFamily: 'inherit' }}
-            >
-              <option value="">-- Seleccionar un Lead --</option>
-              {leads.map(lead => (
-                <option key={lead.id} value={lead.id}>
-                  {lead.nombre} (#{lead.id})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Selector de Estado */}
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <label style={{ fontWeight: 'bold', marginBottom: '5px' }}>Estado Comercial:</label>
-            <select 
-              name="estado"
-              value={formData.estado}
-              onChange={handleChange}
-              style={{ border: '2px solid #333', padding: '8px', borderRadius: '4px', fontFamily: 'inherit' }}
-            >
-              <option value="En negociación">En negociación</option>
-              <option value="Propuesta enviada">Propuesta enviada</option>
-              <option value="Ganada">Ganada</option>
-              <option value="Perdida">Perdida</option>
-            </select>
-          </div>
-
-          {/* NUEVO: Monto Estimado */}
-          <div style={{ display: 'flex', flexDirection: 'column', gridColumn: 'span 2' }}>
-            <label style={{ fontWeight: 'bold', marginBottom: '5px' }}>Monto Estimado ($):</label>
-            <input 
-              type="number"
-              name="montoEstimado"
-              value={formData.montoEstimado}
-              onChange={handleChange}
-              placeholder="Ej: 150000"
-              style={{ border: '2px solid #333', padding: '8px', borderRadius: '4px', fontFamily: 'inherit' }}
-            />
-          </div>
-
-          {/* Descripción */}
-          <div style={{ display: 'flex', flexDirection: 'column', gridColumn: 'span 2' }}>
-            <label style={{ fontWeight: 'bold', marginBottom: '5px' }}>Descripción (Opcional - Trae datos del Lead):</label>
-            <textarea 
-              name="descripcion"
-              rows="3"
-              value={formData.descripcion}
-              onChange={handleChange}
-              placeholder="Aquí aparecerá la descripción previa del lead..."
-              style={{ border: '2px solid #333', padding: '8px', borderRadius: '4px', fontFamily: 'inherit' }}
-            />
-          </div>
-
-          {/* Checkbox es cliente */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', gridColumn: 'span 2' }}>
-            <input 
-              type="checkbox"
-              name="esCliente"
-              id="esCliente"
-              checked={formData.esCliente}
-              onChange={handleChange}
-            />
-            <label htmlFor="esCliente" style={{ fontWeight: 'bold', cursor: 'pointer' }}>¿Es cliente actualmente?</label>
-          </div>
-
-          {/* Datos de contacto (Automáticos por Lead o editables manuales) */}
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <label style={{ fontWeight: 'bold', marginBottom: '5px' }}>Nombre de Contacto:</label>
-            <input 
-              type="text"
-              name="contactoNombre"
-              value={formData.contactoNombre}
-              onChange={handleChange}
-              style={{ border: '2px solid #333', padding: '8px', borderRadius: '4px', fontFamily: 'inherit' }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <label style={{ fontWeight: 'bold', marginBottom: '5px' }}>Dato de Contacto (Tel/Email):</label>
-            <input 
-              type="text"
-              name="contactoDato"
-              value={formData.contactoDato}
-              onChange={handleChange}
-              style={{ border: '2px solid #333', padding: '8px', borderRadius: '4px', fontFamily: 'inherit' }}
-            />
-          </div>
-
+      {!enNegociacion ? (
+        <div style={{ padding: '32px', textAlign: 'center', color: 'var(--gray-500)' }}>
+          Esta oportunidad ya fue <strong>{oportunidad.etapa}</strong> y no puede modificarse.
         </div>
+      ) : (
+        <>
+          {/* Tabs */}
+          <div style={{ display: 'flex', borderBottom: '1px solid var(--border)' }}>
+            {['ganada', 'perdida'].map(t => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTab(t)}
+                style={{
+                  padding: '11px 24px',
+                  fontFamily: 'var(--font)',
+                  fontSize: '13px',
+                  fontWeight: tab === t ? 600 : 400,
+                  border: 'none',
+                  borderBottom: tab === t ? '2px solid var(--accent)' : '2px solid transparent',
+                  background: 'none',
+                  cursor: 'pointer',
+                  color: tab === t ? 'var(--accent)' : 'var(--gray-500)',
+                  marginBottom: '-1px',
+                }}
+              >
+                {t === 'ganada' ? '✅ Registrar como Ganada' : '❌ Registrar como Perdida'}
+              </button>
+            ))}
+          </div>
 
-        {/* Botonera */}
-        <div style={{ marginTop: '20px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-          <button 
-            type="button"
-            onClick={onCancel}
-            style={{ border: '2px solid #333', padding: '10px 20px', background: 'white', cursor: 'pointer', fontWeight: 'bold' }}
-          >
-            ❌ Cancelar
-          </button>
-          <button 
-            type="submit"
-            style={{ border: '2px solid #333', padding: '10px 20px', background: '#d4f7d4', cursor: 'pointer', fontWeight: 'bold' }}
-          >
-            💾 Guardar Oportunidad
-          </button>
-        </div>
-      </form>
+          {tab === 'ganada' && (
+            <form onSubmit={handleGanada}>
+              <div className="form-card-body">
+                <div className="form-group">
+                  <label className="form-label">Cliente *</label>
+                  <select className="form-select" value={clienteId} onChange={e => setClienteId(e.target.value)}>
+                    <option value="">— Seleccioná el cliente —</option>
+                    {clientes.map(c => (
+                      <option key={c.id} value={c.id}>{c.razonSocial} (#{c.id})</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Monto Final ($) *</label>
+                  <input className="form-input" type="number" value={montoFinal} onChange={e => setMontoFinal(e.target.value)} placeholder="0.00" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Observaciones</label>
+                  <textarea className="form-textarea" value={obsGanada} onChange={e => setObsGanada(e.target.value)} placeholder="Detalles del cierre..." rows={3} />
+                </div>
+              </div>
+              <div className="form-card-footer">
+                <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancelar</button>
+                <button type="submit" className="btn btn-success">✅ Confirmar Ganada</button>
+              </div>
+            </form>
+          )}
+
+          {tab === 'perdida' && (
+            <form onSubmit={handlePerdida}>
+              <div className="form-card-body">
+                <div className="form-group">
+                  <label className="form-label">Motivo de pérdida *</label>
+                  <textarea className="form-textarea" value={obsPerdida} onChange={e => setObsPerdida(e.target.value)} placeholder="Explicá el motivo por el cual se perdió la oportunidad..." rows={4} />
+                </div>
+              </div>
+              <div className="form-card-footer">
+                <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancelar</button>
+                <button type="submit" className="btn btn-danger">❌ Confirmar Pérdida</button>
+              </div>
+            </form>
+          )}
+        </>
+      )}
     </div>
   );
 }
 
-export default OportunidadForm;
+export { etapaBadge };
