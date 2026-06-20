@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 // Etapas reales según OportunidadService.java
 // El backend setea etapa = "negociación" al crear
@@ -12,6 +12,9 @@ function etapaBadge(etapa) {
   if (e.includes('perdida') || e.includes('perdido')) return <span className="badge badge-perdida">Perdida</span>;
   return <span className="badge badge-negociacion">{etapa}</span>;
 }
+
+const fmtMoney = (v) =>
+  v != null ? `$${Number(v).toLocaleString('es-AR')}` : '—';
 
 // Modo CREATE: POST /api/oportunidades → { leadId, oportunidadId }
 // Modo GANADA: PUT /api/oportunidades/{id}/ganada → { montoFinal, observaciones, clienteId }
@@ -62,11 +65,10 @@ export default function OportunidadForm({ oportunidad, leads, clientes, onSave, 
   const handleGanada = (e) => {
     e.preventDefault();
     if (!montoFinal) { alert('El monto final es obligatorio.'); return; }
-    if (!clienteId) { alert('Seleccioná el cliente asociado.'); return; }
     onRegistrarGanada(oportunidad.id, {
       montoFinal:   parseFloat(montoFinal),
       observaciones: obsGanada,
-      clienteId:    parseInt(clienteId),
+      clienteId:    clienteId ? parseInt(clienteId) : null,
     });
   };
 
@@ -124,9 +126,67 @@ export default function OportunidadForm({ oportunidad, leads, clientes, onSave, 
       </div>
 
       {!enNegociacion ? (
-        <div style={{ padding: '32px', textAlign: 'center', color: 'var(--gray-500)' }}>
-          Esta oportunidad ya fue <strong>{oportunidad.etapa}</strong> y no puede modificarse.
-        </div>
+        <>
+          <div className="form-card-body" style={{ gap: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div>
+                <label className="form-label" style={{ fontWeight: 600, color: 'var(--gray-400)' }}>Lead / Prospecto</label>
+                <div style={{ fontSize: '15px', color: 'var(--gray-900)', fontWeight: 600 }}>
+                  {oportunidad.prospecto?.nombre || `Lead #${oportunidad.prospecto?.id || '—'}`}
+                </div>
+                {oportunidad.prospecto?.contacto && (
+                  <div style={{ fontSize: '12.5px', color: 'var(--gray-500)', marginTop: '2px' }}>
+                    📞 {oportunidad.prospecto.contacto}
+                  </div>
+                )}
+              </div>
+
+              {etapa.includes('ganad') && (
+                <div>
+                  <label className="form-label" style={{ fontWeight: 600, color: 'var(--gray-400)' }}>Cliente Generado / Asociado</label>
+                  <div style={{ fontSize: '15px', color: 'var(--gray-900)', fontWeight: 600 }}>
+                    🏢 {oportunidad.cliente?.razonSocial || '—'}
+                  </div>
+                  {oportunidad.cliente?.id && (
+                    <div style={{ fontSize: '12px', color: 'var(--gray-500)', marginTop: '2px', fontFamily: 'monospace' }}>
+                      ID: #{oportunidad.cliente.id}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {etapa.includes('ganad') && (
+              <div>
+                <label className="form-label" style={{ fontWeight: 600, color: 'var(--gray-400)' }}>Monto Final</label>
+                <div style={{ fontSize: '18px', color: 'var(--success)', fontWeight: 700, fontFamily: 'monospace' }}>
+                  {fmtMoney(oportunidad.montoFinal)}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="form-label" style={{ fontWeight: 600, color: 'var(--gray-400)' }}>
+                Observaciones {etapa.includes('ganad') ? '(de cierre)' : '(motivo de pérdida)'}
+              </label>
+              <div style={{
+                padding: '12px 16px',
+                background: 'var(--gray-50)',
+                borderRadius: 'var(--radius)',
+                border: '1px solid var(--border)',
+                fontSize: '13.5px',
+                color: 'var(--gray-700)',
+                lineHeight: '1.6',
+                whiteSpace: 'pre-wrap'
+              }}>
+                {oportunidad.observaciones || 'Sin observaciones registradas.'}
+              </div>
+            </div>
+          </div>
+          <div className="form-card-footer">
+            <button type="button" className="btn btn-secondary" onClick={onCancel}>Volver al listado</button>
+          </div>
+        </>
       ) : (
         <>
           {/* Tabs */}
@@ -158,9 +218,9 @@ export default function OportunidadForm({ oportunidad, leads, clientes, onSave, 
             <form onSubmit={handleGanada}>
               <div className="form-card-body">
                 <div className="form-group">
-                  <label className="form-label">Cliente *</label>
+                  <label className="form-label">Cliente <span style={{ color: 'var(--gray-500)', fontWeight: 400, textTransform: 'none' }}>(Opcional)</span></label>
                   <select className="form-select" value={clienteId} onChange={e => setClienteId(e.target.value)}>
-                    <option value="">— Seleccioná el cliente —</option>
+                    <option value="">— Auto-generar nuevo cliente —</option>
                     {clientes.map(c => (
                       <option key={c.id} value={c.id}>{c.razonSocial} (#{c.id})</option>
                     ))}
@@ -202,4 +262,4 @@ export default function OportunidadForm({ oportunidad, leads, clientes, onSave, 
   );
 }
 
-export { etapaBadge };
+
