@@ -401,7 +401,6 @@ function App() {
             client={clienteSeleccionado}
             opportunities={oportunidades}
             onBackClick={volverAlListado}
-            onDeleteClick={handleDeleteCliente}
             onEditClick={(c) => { setClienteSeleccionado(c); setVista('FORMULARIO'); }}
           />
         )}
