@@ -194,6 +194,27 @@ function App() {
     }
   };
 
+  const handleDeleteCliente = async (id) => {
+    if (!window.confirm('¿Está seguro de que desea eliminar este cliente?')) {
+      return;
+    }
+    try {
+      const res = await fetch(`${BASE}/clientes/${id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        await fetchAll();
+        volverAlListado();
+      } else {
+        const errorMsg = await res.text();
+        alert(`Error al eliminar el Cliente: ${errorMsg}`);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error de conexión.');
+    }
+  };
+
   // ── Campañas ───────────────────────────────────────────────────────────────
   const handleSaveCampania = async (payload) => {
     try {
@@ -360,6 +381,7 @@ function App() {
             client={clienteSeleccionado}
             opportunities={oportunidades}
             onBackClick={volverAlListado}
+            onDeleteClick={handleDeleteCliente}
           />
         )}
 
