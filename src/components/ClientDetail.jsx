@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function ClientDetail({ client, opportunities = [], onBackClick, onDeleteClick }) {
+export default function ClientDetail({ client, opportunities = [], onBackClick, onDeleteClick, onEditClick }) {
   // Filter opportunities for this client
   const clientOps = opportunities.filter(op => op.cliente?.id === client.id);
 
@@ -21,13 +21,22 @@ export default function ClientDetail({ client, opportunities = [], onBackClick, 
           <h2>Detalle de Cliente</h2>
           <p>Información corporativa y comercial del cliente</p>
         </div>
-        <button 
-          className="btn btn-danger" 
-          style={{ marginBottom: '8px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-          onClick={() => onDeleteClick?.(client.id)}
-        >
-          🗑️ Eliminar Cliente
-        </button>
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+          <button 
+            className="btn btn-secondary" 
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            onClick={() => onEditClick?.(client)}
+          >
+            ✏️ Editar Cliente
+          </button>
+          <button 
+            className="btn btn-danger" 
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            onClick={() => onDeleteClick?.(client.id)}
+          >
+            🗑️ Eliminar Cliente
+          </button>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'start' }}>

@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
 
-export default function ClientForm({ onSave, onCancel }) {
-  const [formData, setFormData] = useState({ razonSocial: '', cuit: '', direccion: '' });
+export default function ClientForm({ client, onSave, onCancel }) {
+  const [formData, setFormData] = useState({
+    razonSocial: client?.razonSocial || '',
+    cuit: client?.cuit || '',
+    direccion: client?.direccion || '',
+    activo: client ? (client.activo !== false) : true,
+  });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -18,21 +23,22 @@ export default function ClientForm({ onSave, onCancel }) {
       alert('La Dirección es obligatoria.');
       return;
     }
-    // Payload que espera ClienteController.ClienteRequest del backend
     onSave({
-      id:          Date.now(),        // Long autogenerado
+      id:          client?.id || Date.now(),
       razonSocial: formData.razonSocial.trim(),
       cuit:        formData.cuit.trim(),
       direccion:   formData.direccion.trim(),
-      activo:      true,
+      activo:      formData.activo,
     });
   };
+
+  const isEditing = !!client;
 
   return (
     <div className="form-card">
       <div className="form-card-header">
-        <h2>Registrar Nuevo Cliente</h2>
-        <p>Completá los datos de la empresa que pasa a ser cliente</p>
+        <h2>{isEditing ? 'Editar Cliente' : 'Registrar Nuevo Cliente'}</h2>
+        <p>{isEditing ? 'Modificá los datos de la empresa cliente' : 'Completá los datos de la empresa que pasa a ser cliente'}</p>
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -63,7 +69,7 @@ export default function ClientForm({ onSave, onCancel }) {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Dirección</label>
+            <label className="form-label">Dirección *</label>
             <input
               className="form-input"
               type="text"
@@ -74,6 +80,20 @@ export default function ClientForm({ onSave, onCancel }) {
             />
           </div>
 
+          <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+            <input
+              type="checkbox"
+              id="activo"
+              name="activo"
+              checked={formData.activo}
+              onChange={(e) => setFormData(prev => ({ ...prev, activo: e.target.checked }))}
+              style={{ width: 'auto', margin: 0 }}
+            />
+            <label htmlFor="activo" className="form-label" style={{ margin: 0, cursor: 'pointer' }}>
+              Cliente Activo
+            </label>
+          </div>
+
         </div>
 
         <div className="form-card-footer">
@@ -81,7 +101,7 @@ export default function ClientForm({ onSave, onCancel }) {
             Cancelar
           </button>
           <button type="submit" className="btn btn-primary">
-            Guardar Cliente
+            {isEditing ? 'Guardar Cambios' : 'Guardar Cliente'}
           </button>
         </div>
       </form>

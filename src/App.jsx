@@ -176,6 +176,25 @@ function App() {
     } catch (e) { console.error(e); alert('Error de conexión.'); }
   };
 
+  const handleUpdateCliente = async (payload) => {
+    try {
+      const res = await fetch(`${BASE}/clientes/${payload.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        await fetchAll();
+        volverAlListado();
+      } else {
+        alert(`Error al actualizar el Cliente: ${await res.text()}`);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error de conexión.');
+    }
+  };
+
   const handleVerDetalleCliente = async (cliente) => {
     try {
       const res = await fetch(`${BASE}/clientes/${cliente.id}`);
@@ -366,13 +385,14 @@ function App() {
             clients={filteredClientes}
             searchTerm={searchClientes}
             onSearchChange={setSearchClientes}
-            onCreateClick={() => setVista('FORMULARIO')}
+            onCreateClick={() => { setClienteSeleccionado(null); setVista('FORMULARIO'); }}
             onSelectClient={handleVerDetalleCliente}
           />
         )}
         {seccion === 'CLIENTES' && vista === 'FORMULARIO' && (
           <ClientForm
-            onSave={handleSaveCliente}
+            client={clienteSeleccionado}
+            onSave={clienteSeleccionado ? handleUpdateCliente : handleSaveCliente}
             onCancel={volverAlListado}
           />
         )}
@@ -382,6 +402,7 @@ function App() {
             opportunities={oportunidades}
             onBackClick={volverAlListado}
             onDeleteClick={handleDeleteCliente}
+            onEditClick={(c) => { setClienteSeleccionado(c); setVista('FORMULARIO'); }}
           />
         )}
 
